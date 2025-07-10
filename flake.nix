@@ -2,15 +2,13 @@
   description = "an asynchronous runtime for Zig";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/release-24.11";
-    iguana.url = "github:mookums/iguana";
+    nixpkgs.url = "github:nixos/nixpkgs/release-25.05";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
   outputs =
     {
       nixpkgs,
-      iguana,
       flake-utils,
       ...
     }:
@@ -18,14 +16,12 @@
       system:
       let
         pkgs = import nixpkgs { inherit system; };
-        iguanaLib = iguana.lib.${system};
       in
       {
-        devShells.default = iguanaLib.mkShell {
-          zigVersion = "0_14_0";
-          withZls = true;
-
-          extraPackages = with pkgs; [
+        devShells.default = pkgs.mkShell {
+          packages = with pkgs; [
+            zig
+            zls
             openssl
             inetutils
             wrk
