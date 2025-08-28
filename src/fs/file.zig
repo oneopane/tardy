@@ -421,6 +421,7 @@ pub const File = packed struct {
             const file_stat = std_file.stat() catch |e| {
                 return switch (e) {
                     StdFile.StatError.AccessDenied => StatError.AccessDenied,
+                    StdFile.StatError.PermissionDenied => StatError.AccessDenied,
                     StdFile.StatError.SystemResources => StatError.OutOfMemory,
                     StdFile.StatError.Unexpected => StatError.Unexpected,
                 };

@@ -71,7 +71,7 @@ pub fn main() !void {
         p.size_aio_reap_max = rand.intRangeAtMost(usize, 1, p.size_tasks_initial * 2);
         break :blk p;
     };
-    log.debug("{s}", .{std.json.fmt(shared, .{ .whitespace = .indent_1 })});
+    log.debug("{any}", .{std.json.fmt(shared, .{ .whitespace = .indent_1 })});
 
     var tardy = try Tardy.init(allocator, .{
         .threading = .{ .multi = 2 },
