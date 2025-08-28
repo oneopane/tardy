@@ -32,7 +32,7 @@ fn stream_frame(rt: *Runtime, server: *const Socket, file_name: [:0]const u8) !v
     defer file.close_blocking();
 
     log.debug(
-        "{d} - accepted socket [{}]",
+        "{d} - accepted socket [{any}]",
         .{ std.time.milliTimestamp(), socket.addr },
     );
 

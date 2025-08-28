@@ -24,11 +24,13 @@ fn main_frame(rt: *Runtime, p: *EntryParams) !void {
         else => return e,
     };
 
-    const reader = file.reader(rt);
-    const writer = std_out.writer(rt);
-
-    var buffer: [1024 * 32]u8 = undefined;
+    var read_buffer: [1024 * 32]u8 = undefined;
+    var write_buffer: [1024 * 32]u8 = undefined;
+    
+    const reader = file.reader(rt, &read_buffer);
+    const writer = std_out.writer(rt, &write_buffer);
     var done: bool = false;
+    var buffer: [1024 * 32]u8 = undefined;
 
     while (!done) {
         const length = try reader.readAll(&buffer);

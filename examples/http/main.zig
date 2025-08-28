@@ -22,7 +22,7 @@ fn main_frame(rt: *Runtime, server: *const Socket) !void {
     defer socket.close_blocking();
 
     log.debug(
-        "{d} - accepted socket [{}]",
+        "{d} - accepted socket [{any}]",
         .{ std.time.milliTimestamp(), socket.addr },
     );
 

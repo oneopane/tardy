@@ -18,11 +18,14 @@ fn echo_frame(rt: *Runtime, server: *const Socket) !void {
     const socket = try server.accept(rt);
     defer socket.close_blocking();
 
-    const reader = socket.reader(rt);
-    const writer = socket.writer(rt);
+    var read_buffer: [1024]u8 = undefined;
+    var write_buffer: [1024]u8 = undefined;
+    
+    const reader = socket.reader(rt, &read_buffer);
+    const writer = socket.writer(rt, &write_buffer);
 
     log.debug(
-        "{d} - accepted socket [{}]",
+        "{d} - accepted socket [{any}]",
         .{ std.time.milliTimestamp(), socket.addr },
     );
 
