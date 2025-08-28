@@ -27,16 +27,12 @@ fn main_frame(rt: *Runtime, p: *EntryParams) !void {
     var read_buffer: [1024 * 32]u8 = undefined;
     var write_buffer: [1024 * 32]u8 = undefined;
     
-    const reader = file.reader(rt, &read_buffer);
-    const writer = std_out.writer(rt, &write_buffer);
-    var done: bool = false;
-    var buffer: [1024 * 32]u8 = undefined;
-
-    while (!done) {
-        const length = try reader.readAll(&buffer);
-        done = length < buffer.len;
-        try writer.writeAll(buffer[0..length]);
-    }
+    var reader = file.reader(rt, &read_buffer);
+    var writer = std_out.writer(rt, &write_buffer);
+    
+    // Copy from reader to writer
+    _ = try reader.stream(&writer, .unlimited);
+    try writer.flush();
 }
 
 pub fn main() !void {

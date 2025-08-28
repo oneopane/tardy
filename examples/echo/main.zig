@@ -21,8 +21,8 @@ fn echo_frame(rt: *Runtime, server: *const Socket) !void {
     var read_buffer: [1024]u8 = undefined;
     var write_buffer: [1024]u8 = undefined;
     
-    const reader = socket.reader(rt, &read_buffer);
-    const writer = socket.writer(rt, &write_buffer);
+    var reader = socket.reader(rt, &read_buffer);
+    var writer = socket.writer(rt, &write_buffer);
 
     log.debug(
         "{d} - accepted socket [{any}]",
@@ -32,19 +32,25 @@ fn echo_frame(rt: *Runtime, server: *const Socket) !void {
     // spawn off a new frame.
     try rt.spawn(.{ rt, server }, echo_frame, 1024 * 16);
 
-    var buffer: [1024]u8 = undefined;
     while (true) {
-        const recv_length = reader.read(&buffer) catch |e| {
-            log.err("Failed to recv on socket | {any}", .{e});
-            return;
+        // Read some bytes from the socket  
+        const data = reader.take(1024) catch |e| switch (e) {
+            error.EndOfStream => return, // Connection closed
+            else => {
+                log.err("Failed to recv on socket | {any}", .{e});
+                return;
+            },
         };
-
-        writer.writeAll(buffer[0..recv_length]) catch |e| {
-            log.err("Failed to send on socket | {any}", .{e});
+        
+        if (data.len == 0) {
+            // Connection closed
             return;
-        };
+        }
 
-        log.debug("Echoed: {s}", .{buffer[0..recv_length]});
+        try writer.writeAll(data);
+        try writer.flush();
+
+        log.debug("Echoed: {s}", .{data});
     }
 }
 
