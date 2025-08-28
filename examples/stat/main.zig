@@ -37,7 +37,11 @@ pub fn main() !void {
             if (i == 1) break :blk arg;
         }
 
-        try std.io.getStdOut().writeAll("file name not passed in: ./stat [file name]");
+        var stdout_buffer: [4096]u8 = undefined;
+        var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
+        const stdout = &stdout_writer.interface;
+        try stdout.writeAll("file name not passed in: ./stat [file name]");
+        try stdout.flush();
         return;
     };
 

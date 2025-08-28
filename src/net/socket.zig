@@ -294,29 +294,71 @@ pub const Socket = struct {
 
     const ReadWriteContext = struct { socket: Socket, rt: *Runtime };
 
-    const Writer = std.io.GenericWriter(ReadWriteContext, anyerror, struct {
-        fn write(ctx: ReadWriteContext, bytes: []const u8) !usize {
-            return try ctx.socket.send(ctx.rt, bytes);
-        }
-    }.write);
+    pub const Writer = struct {
+        context: ReadWriteContext,
+        buffer: []u8,
+        interface: std.Io.Writer,
 
-    const Reader = std.io.GenericReader(ReadWriteContext, anyerror, struct {
-        fn read(ctx: ReadWriteContext, buffer: []u8) !usize {
-            return try ctx.socket.recv(ctx.rt, buffer);
+        pub fn init(socket: Socket, rt: *Runtime, buffer: []u8) Writer {
+            var self = Writer{
+                .context = .{ .socket = socket, .rt = rt },
+                .buffer = buffer,
+                .interface = undefined,
+            };
+            self.interface = std.Io.Writer.init(&self, Writer.write, Writer.flush);
+            return self;
         }
-    }.read);
 
-    pub fn writer(self: Socket, rt: *Runtime) Writer {
-        return Writer{ .context = .{ .socket = self, .rt = rt } };
+        fn write(ptr: *anyopaque, bytes: []const u8) std.Io.Writer.Error!usize {
+            const self: *Writer = @ptrCast(@alignCast(ptr));
+            return self.context.socket.send(self.context.rt, bytes) catch |err| switch (err) {
+                error.OutOfMemory => return error.OutOfMemory,
+                else => return error.Unexpected,
+            };
+        }
+
+        fn flush(_: *anyopaque) std.Io.Writer.Error!void {
+            // Socket writes are unbuffered, nothing to flush
+        }
+    };
+
+    pub const Reader = struct {
+        context: ReadWriteContext,
+        buffer: []u8,
+        interface: std.Io.Reader,
+
+        pub fn init(socket: Socket, rt: *Runtime, buffer: []u8) Reader {
+            var self = Reader{
+                .context = .{ .socket = socket, .rt = rt },
+                .buffer = buffer,
+                .interface = undefined,
+            };
+            self.interface = std.Io.Reader.init(&self, Reader.read, Reader.SeekError, null);
+            return self;
+        }
+
+        pub const SeekError = error{};
+
+        fn read(ptr: *anyopaque, dest: []u8) std.Io.Reader.Error!usize {
+            const self: *Reader = @ptrCast(@alignCast(ptr));
+            return self.context.socket.recv(self.context.rt, dest) catch |err| switch (err) {
+                error.OutOfMemory => return error.OutOfMemory,
+                else => return error.Unexpected,
+            };
+        }
+    };
+
+    pub fn writer(self: Socket, rt: *Runtime, buffer: []u8) Writer {
+        return Writer.init(self, rt, buffer);
     }
 
-    pub fn reader(self: Socket, rt: *Runtime) Reader {
-        return Reader{ .context = .{ .socket = self, .rt = rt } };
+    pub fn reader(self: Socket, rt: *Runtime, buffer: []u8) Reader {
+        return Reader.init(self, rt, buffer);
     }
 
     pub fn stream(self: *const Socket) Stream {
         return Stream{
-            .inner = @constCast(@ptrCast(self)),
+            .inner = @ptrCast(@constCast(self)),
             .vtable = .{
                 .read = struct {
                     fn read(inner: *anyopaque, rt: *Runtime, buffer: []u8) !usize {

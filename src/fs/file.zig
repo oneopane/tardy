@@ -447,32 +447,72 @@ pub const File = packed struct {
 
     const ReadWriteContext = struct { file: File, rt: *Runtime };
 
-    const Writer = std.io.GenericWriter(ReadWriteContext, anyerror, struct {
-        fn write(ctx: ReadWriteContext, bytes: []const u8) !usize {
-            return try ctx.file.write(ctx.rt, bytes, null);
-        }
-    }.write);
+    pub const Writer = struct {
+        context: ReadWriteContext,
+        buffer: []u8,
+        interface: std.Io.Writer,
 
-    const Reader = std.io.GenericReader(ReadWriteContext, anyerror, struct {
-        fn read(ctx: ReadWriteContext, buffer: []u8) !usize {
-            return ctx.file.read(ctx.rt, buffer, null) catch |e| switch (e) {
-                error.EndOfFile => 0,
-                else => return e,
+        pub fn init(file: File, rt: *Runtime, buffer: []u8) Writer {
+            var self = Writer{
+                .context = .{ .file = file, .rt = rt },
+                .buffer = buffer,
+                .interface = undefined,
+            };
+            self.interface = std.Io.Writer.init(&self, Writer.write, Writer.flush);
+            return self;
+        }
+
+        fn write(ptr: *anyopaque, bytes: []const u8) std.Io.Writer.Error!usize {
+            const self: *Writer = @ptrCast(@alignCast(ptr));
+            return self.context.file.write(self.context.rt, bytes, null) catch |err| switch (err) {
+                error.OutOfMemory => return error.OutOfMemory,
+                else => return error.Unexpected,
             };
         }
-    }.read);
 
-    pub fn writer(self: File, rt: *Runtime) Writer {
-        return Writer{ .context = .{ .file = self, .rt = rt } };
+        fn flush(_: *anyopaque) std.Io.Writer.Error!void {
+            // File writes are unbuffered in this implementation, nothing to flush
+        }
+    };
+
+    pub const Reader = struct {
+        context: ReadWriteContext,
+        buffer: []u8,
+        interface: std.Io.Reader,
+
+        pub fn init(file: File, rt: *Runtime, buffer: []u8) Reader {
+            var self = Reader{
+                .context = .{ .file = file, .rt = rt },
+                .buffer = buffer,
+                .interface = undefined,
+            };
+            self.interface = std.Io.Reader.init(&self, Reader.read, Reader.SeekError, null);
+            return self;
+        }
+
+        pub const SeekError = error{};
+
+        fn read(ptr: *anyopaque, dest: []u8) std.Io.Reader.Error!usize {
+            const self: *Reader = @ptrCast(@alignCast(ptr));
+            return self.context.file.read(self.context.rt, dest, null) catch |err| switch (err) {
+                error.EndOfFile => return 0,
+                error.OutOfMemory => return error.OutOfMemory,
+                else => return error.Unexpected,
+            };
+        }
+    };
+
+    pub fn writer(self: File, rt: *Runtime, buffer: []u8) Writer {
+        return Writer.init(self, rt, buffer);
     }
 
-    pub fn reader(self: File, rt: *Runtime) Reader {
-        return Reader{ .context = .{ .file = self, .rt = rt } };
+    pub fn reader(self: File, rt: *Runtime, buffer: []u8) Reader {
+        return Reader.init(self, rt, buffer);
     }
 
     pub fn stream(self: *const File) Stream {
         return Stream{
-            .inner = @constCast(@ptrCast(self)),
+            .inner = @ptrCast(@constCast(self)),
             .vtable = .{
                 .read = struct {
                     fn read(inner: *anyopaque, rt: *Runtime, buffer: []u8) !usize {

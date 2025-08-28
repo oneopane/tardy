@@ -40,7 +40,7 @@ pub fn main() !void {
     // max u64 is 21 characters long :p
     var maybe_seed_buffer: [21]u8 = undefined;
     const seed_string = args.next() orelse blk: {
-        const stdin = std.io.getStdIn();
+        const stdin = std.fs.File.stdin();
         const bytes = try stdin.readToEndAlloc(allocator, std.math.maxInt(usize));
         defer allocator.free(bytes);
 
