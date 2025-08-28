@@ -77,17 +77,17 @@ pub const AsyncPoll = struct {
         errdefer for (pipe) |fd| std.posix.close(fd);
 
         var fd_list = try std.ArrayList(std.posix.pollfd).initCapacity(allocator, size);
-        errdefer fd_list.deinit();
+        errdefer fd_list.deinit(allocator);
 
         var fd_job_map = std.AutoHashMap(std.posix.fd_t, Job).init(allocator);
         errdefer fd_job_map.deinit();
         try fd_job_map.ensureTotalCapacity(@intCast(size));
 
         if (comptime builtin.os.tag == .windows) {
-            try fd_list.append(.{ .fd = @ptrCast(pipe[0]), .events = std.posix.POLL.IN, .revents = 0 });
+            try fd_list.append(allocator, .{ .fd = @ptrCast(pipe[0]), .events = std.posix.POLL.IN, .revents = 0 });
             try fd_job_map.put(@ptrCast(pipe[0]), .{ .index = 0, .type = .wake, .task = 0 });
         } else {
-            try fd_list.append(.{ .fd = pipe[0], .events = std.posix.POLL.IN, .revents = 0 });
+            try fd_list.append(allocator, .{ .fd = pipe[0], .events = std.posix.POLL.IN, .revents = 0 });
             try fd_job_map.put(pipe[0], .{ .index = 0, .type = .wake, .task = 0 });
         }
 
@@ -105,7 +105,7 @@ pub const AsyncPoll = struct {
 
     pub fn inner_deinit(self: *AsyncPoll, allocator: std.mem.Allocator) void {
         _ = allocator;
-        self.fd_list.deinit();
+        self.fd_list.deinit(self.allocator);
         self.fd_job_map.deinit();
         self.timers.deinit();
         for (self.wake_pipe) |fd| std.posix.close(fd);
@@ -144,7 +144,7 @@ pub const AsyncPoll = struct {
         socket: std.posix.socket_t,
         kind: Socket.Kind,
     ) !void {
-        try self.fd_list.append(.{ .fd = socket, .events = std.posix.POLL.IN, .revents = 0 });
+        try self.fd_list.append(self.allocator, .{ .fd = socket, .events = std.posix.POLL.IN, .revents = 0 });
         try self.fd_job_map.put(socket, .{
             .index = 0,
             .type = .{
@@ -175,7 +175,7 @@ pub const AsyncPoll = struct {
             else => return e,
         };
 
-        try self.fd_list.append(.{ .fd = socket, .events = std.posix.POLL.OUT, .revents = 0 });
+        try self.fd_list.append(self.allocator, .{ .fd = socket, .events = std.posix.POLL.OUT, .revents = 0 });
         try self.fd_job_map.put(socket, .{
             .index = 0,
             .type = .{
@@ -190,7 +190,7 @@ pub const AsyncPoll = struct {
     }
 
     fn queue_recv(self: *AsyncPoll, task: usize, socket: std.posix.socket_t, buffer: []u8) !void {
-        try self.fd_list.append(.{ .fd = socket, .events = std.posix.POLL.IN, .revents = 0 });
+        try self.fd_list.append(self.allocator, .{ .fd = socket, .events = std.posix.POLL.IN, .revents = 0 });
         try self.fd_job_map.put(socket, .{
             .index = 0,
             .type = .{
@@ -204,7 +204,7 @@ pub const AsyncPoll = struct {
     }
 
     fn queue_send(self: *AsyncPoll, task: usize, socket: std.posix.socket_t, buffer: []const u8) !void {
-        try self.fd_list.append(.{ .fd = socket, .events = std.posix.POLL.OUT, .revents = 0 });
+        try self.fd_list.append(self.allocator, .{ .fd = socket, .events = std.posix.POLL.OUT, .revents = 0 });
         try self.fd_job_map.put(socket, .{
             .index = 0,
             .type = .{

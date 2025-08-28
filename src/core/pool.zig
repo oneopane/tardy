@@ -226,16 +226,16 @@ test "Pool: Initalization & Deinit (ArrayList)" {
     defer list_pool.deinit();
 
     for (list_pool.items, 0..) |*item, i| {
-        item.* = std.ArrayList(u8).init(testing.allocator);
-        try item.appendNTimes(0, i);
+        item.* = std.ArrayList(u8){};
+        try item.appendNTimes(testing.allocator, 0, i);
     }
 
     for (list_pool.items, 0..) |item, i| {
         try testing.expectEqual(item.items.len, i);
     }
 
-    for (list_pool.items) |item| {
-        item.deinit();
+    for (list_pool.items) |*item| {
+        item.deinit(testing.allocator);
     }
 }
 
