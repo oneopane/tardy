@@ -33,13 +33,13 @@ fn main_frame(rt: *Runtime, server: *const Socket) !void {
     var recv_length: usize = 0;
     while (true) {
         recv_length += socket.recv(rt, &buffer) catch |e| {
-            log.err("Failed to recv on socket | {}", .{e});
+            log.err("Failed to recv on socket | {any}", .{e});
             return;
         };
 
         if (std.mem.indexOf(u8, buffer[0..recv_length], "\r\n\r\n")) |_| {
             _ = socket.send_all(rt, HTTP_RESPONSE[0..]) catch |e| {
-                log.err("Failed to send on socket | {}", .{e});
+                log.err("Failed to send on socket | {any}", .{e});
                 return;
             };
             recv_length = 0;

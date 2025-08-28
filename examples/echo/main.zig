@@ -32,12 +32,12 @@ fn echo_frame(rt: *Runtime, server: *const Socket) !void {
     var buffer: [1024]u8 = undefined;
     while (true) {
         const recv_length = reader.read(&buffer) catch |e| {
-            log.err("Failed to recv on socket | {}", .{e});
+            log.err("Failed to recv on socket | {any}", .{e});
             return;
         };
 
         writer.writeAll(buffer[0..recv_length]) catch |e| {
-            log.err("Failed to send on socket | {}", .{e});
+            log.err("Failed to send on socket | {any}", .{e});
             return;
         };
 
