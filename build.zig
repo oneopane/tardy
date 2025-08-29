@@ -11,7 +11,7 @@ comptime {
         zig_version.patch == builtin.zig_version.patch;
     if (!zig_version_eq) {
         @compileError(std.fmt.comptimePrint(
-            "unsupported zig version: expected {}, found {}",
+            "unsupported zig version: expected {any}, found {any}",
             .{ zig_version, builtin.zig_version },
         ));
     }
