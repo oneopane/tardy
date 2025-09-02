@@ -26,10 +26,10 @@ fn main_frame(rt: *Runtime, p: *EntryParams) !void {
 
     var read_buffer: [1024 * 32]u8 = undefined;
     var write_buffer: [1024 * 32]u8 = undefined;
-    
+
     var reader = file.reader(rt, &read_buffer);
     var writer = std_out.writer(rt, &write_buffer);
-    
+
     // Copy from reader to writer
     _ = try reader.stream(&writer, .unlimited);
     try writer.flush();

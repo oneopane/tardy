@@ -20,7 +20,7 @@ fn echo_frame(rt: *Runtime, server: *const Socket) !void {
 
     var read_buffer: [1024]u8 = undefined;
     var write_buffer: [1024]u8 = undefined;
-    
+
     var reader = socket.reader(rt, &read_buffer);
     var writer = socket.writer(rt, &write_buffer);
 
@@ -33,7 +33,7 @@ fn echo_frame(rt: *Runtime, server: *const Socket) !void {
     try rt.spawn(.{ rt, server }, echo_frame, 1024 * 16);
 
     while (true) {
-        // Read some bytes from the socket  
+        // Read some bytes from the socket
         const data = reader.take(1024) catch |e| switch (e) {
             error.EndOfStream => return, // Connection closed
             else => {
@@ -41,7 +41,7 @@ fn echo_frame(rt: *Runtime, server: *const Socket) !void {
                 return;
             },
         };
-        
+
         if (data.len == 0) {
             // Connection closed
             return;

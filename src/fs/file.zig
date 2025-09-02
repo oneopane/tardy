@@ -454,25 +454,25 @@ pub const File = packed struct {
         if (buffer.len < @sizeOf(ReadWriteContext)) {
             @panic("Buffer too small for writer context");
         }
-        
+
         // Store context at beginning of buffer
         const ctx_ptr: *ReadWriteContext = @ptrCast(@alignCast(buffer.ptr));
         ctx_ptr.* = .{ .file = self, .rt = rt };
-        
+
         // Use remaining buffer for actual buffering
         const actual_buffer = buffer[@sizeOf(ReadWriteContext)..];
-        
+
         const vtable = struct {
             pub const writer_vtable = std.Io.Writer.VTable{
                 .drain = drain,
             };
-            
+
             fn drain(w: *std.Io.Writer, data: []const []const u8, splat: usize) std.Io.Writer.Error!usize {
                 // Get context from before the buffer
                 const ctx_ptr_inner: *ReadWriteContext = @ptrCast(@alignCast(w.buffer.ptr - @sizeOf(ReadWriteContext)));
-                
+
                 _ = splat; // Ignore splat for now
-                
+
                 var total_written: usize = 0;
                 for (data) |bytes| {
                     const written = ctx_ptr_inner.file.write(ctx_ptr_inner.rt, bytes, null) catch |err| switch (err) {
@@ -485,7 +485,7 @@ pub const File = packed struct {
                 return total_written;
             }
         };
-        
+
         return std.Io.Writer{
             .vtable = &vtable.writer_vtable,
             .buffer = actual_buffer,
@@ -498,50 +498,50 @@ pub const File = packed struct {
         if (buffer.len < @sizeOf(ReadWriteContext)) {
             @panic("Buffer too small for reader context");
         }
-        
+
         // Store context at beginning of buffer
         const ctx_ptr: *ReadWriteContext = @ptrCast(@alignCast(buffer.ptr));
         ctx_ptr.* = .{ .file = self, .rt = rt };
-        
+
         // Use remaining buffer for actual buffering
         const actual_buffer = buffer[@sizeOf(ReadWriteContext)..];
-        
+
         const vtable = struct {
             pub const reader_vtable = std.Io.Reader.VTable{
                 .stream = stream_impl,
             };
-            
+
             fn stream_impl(r: *std.Io.Reader, w: *std.Io.Writer, limit: std.Io.Limit) std.Io.Reader.StreamError!usize {
                 // Get context from before the buffer
                 const ctx_ptr_inner: *ReadWriteContext = @ptrCast(@alignCast(r.buffer.ptr - @sizeOf(ReadWriteContext)));
-                
+
                 const max_read = switch (limit) {
                     .unlimited => r.buffer.len,
                     else => @min(@intFromEnum(limit), r.buffer.len),
                 };
-                
+
                 if (max_read == 0) return 0;
-                
+
                 // Read into our buffer
                 const bytes_read = ctx_ptr_inner.file.read(ctx_ptr_inner.rt, r.buffer[0..max_read], null) catch |err| switch (err) {
                     error.EndOfFile => return 0,
                     // All other errors must map to StreamError set: {ReadFailed, WriteFailed, EndOfStream}
                     else => return error.ReadFailed,
                 };
-                
+
                 if (bytes_read > 0) {
                     // Update reader state
                     r.end = bytes_read;
                     r.seek = 0;
-                    
+
                     // Write to the output writer
                     _ = w.writeAll(r.buffer[0..bytes_read]) catch return error.WriteFailed;
                 }
-                
+
                 return bytes_read;
             }
         };
-        
+
         return std.Io.Reader{
             .vtable = &vtable.reader_vtable,
             .buffer = actual_buffer,
